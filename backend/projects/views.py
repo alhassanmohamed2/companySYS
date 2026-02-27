@@ -49,15 +49,20 @@ class TaskViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             permission_classes = [permissions.IsAuthenticated]
-        elif self.action in ['create', 'destroy']:
-            permission_classes = [IsAdminUser | IsPMUser]
+        elif self.action in ['create']:
+            permission_classes = [IsAdminUser | IsPMUser | IsCEOUser]
         elif self.action in ['update', 'partial_update']:
-            permission_classes = [IsAdminUser | IsPMUser | IsDeveloperUser]
+            permission_classes = [permissions.IsAuthenticated]
+        elif self.action == 'destroy':
+            permission_classes = [IsAdminUser | IsPMUser]
+        else:
+            permission_classes = [permissions.IsAuthenticated]
         return [permission() for permission in permission_classes]
 
 class AssetLinkViewSet(viewsets.ModelViewSet):
     queryset = AssetLink.objects.all().order_by('-created_at')
     serializer_class = AssetLinkSerializer
+    permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['project', 'asset_type']
 
