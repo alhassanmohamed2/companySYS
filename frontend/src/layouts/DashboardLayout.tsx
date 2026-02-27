@@ -47,11 +47,9 @@ export default function DashboardLayout() {
                     <NavLink to="/" end style={({ isActive }) => linkStyle(isActive)}>
                         <LayoutDashboard size={18} /> Dashboard
                     </NavLink>
-                    {(role === 'ADMIN' || role === 'PM') && (
-                        <NavLink to="/projects" style={({ isActive }) => linkStyle(isActive)}>
-                            <FolderKanban size={18} /> Projects
-                        </NavLink>
-                    )}
+                    <NavLink to="/projects" style={({ isActive }) => linkStyle(isActive)}>
+                        <FolderKanban size={18} /> Projects
+                    </NavLink>
                     {(role === 'ADMIN' || role === 'PM' || role === 'DEV') && (
                         <NavLink to="/tasks" style={({ isActive }) => linkStyle(isActive)}>
                             <ListTodo size={18} /> Tasks

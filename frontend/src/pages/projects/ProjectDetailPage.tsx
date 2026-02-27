@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
 import { getProject, getTasks, getAssets, createAsset, createTask, deleteAsset } from '../../services/api';
-import { ArrowLeft, Github, Link2, Plus, Trash2, ListTodo, FolderKanban, ExternalLink, X } from 'lucide-react';
+import { ArrowLeft, Github, Link2, Plus, Trash2, ListTodo, FolderKanban, ExternalLink, X, Eye, Users, Clock } from 'lucide-react';
 
 export default function ProjectDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { role } = useAuthStore();
+    const canEdit = role === 'ADMIN' || role === 'PM';
+
     const [project, setProject] = useState<any>(null);
     const [tasks, setTasks] = useState<any[]>([]);
     const [assets, setAssets] = useState<any[]>([]);
@@ -45,6 +49,7 @@ export default function ProjectDetailPage() {
 
     const githubAssets = assets.filter((a) => a.asset_type === 'GITHUB');
     const otherAssets = assets.filter((a) => a.asset_type !== 'GITHUB');
+    const devs = [...new Set(tasks.filter((t: any) => t.assigned_to).map((t: any) => t.assigned_to?.username))];
 
     const statusBadge = (status: string) => {
         const map: Record<string, string> = { TODO: 'badge-todo', IN_PROGRESS: 'badge-progress', REVIEW: 'badge-review', DONE: 'badge-done' };
@@ -56,15 +61,58 @@ export default function ProjectDetailPage() {
     return (
         <div className="animate-in">
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '2rem' }}>
-                <button className="btn btn-outline" style={{ padding: '0.4rem' }} onClick={() => navigate('/projects')}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1.5rem' }}>
+                <button className="btn btn-outline" style={{ padding: '0.4rem' }} onClick={() => navigate(-1)}>
                     <ArrowLeft size={18} />
                 </button>
-                <div>
+                <div style={{ flex: 1 }}>
                     <h1 style={{ fontSize: '1.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
                         <FolderKanban size={24} color="#6366f1" /> {project.name}
                     </h1>
                     <p style={{ color: '#94a3b8', marginTop: 2, fontSize: '0.9rem' }}>{project.description}</p>
+                </div>
+                {!canEdit && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0.4rem 0.75rem', borderRadius: '0.5rem', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
+                        <Eye size={14} color="#818cf8" />
+                        <span style={{ fontSize: '0.75rem', color: '#818cf8', fontWeight: 500 }}>View Only</span>
+                    </div>
+                )}
+            </div>
+
+            {/* Project Info Bar */}
+            <div className="card" style={{ marginBottom: '1.5rem', display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{
+                        width: 32, height: 32, borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #6366f1, #6366f180)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.7rem', fontWeight: 700, color: '#fff',
+                    }}>{project.pm?.username?.charAt(0).toUpperCase() ?? '?'}</div>
+                    <div>
+                        <p style={{ fontSize: '0.7rem', color: '#64748b' }}>Project Manager</p>
+                        <p style={{ fontSize: '0.85rem', fontWeight: 500 }}>{project.pm?.username ?? 'Unassigned'}</p>
+                    </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Users size={16} color="#06b6d4" />
+                    <div>
+                        <p style={{ fontSize: '0.7rem', color: '#64748b' }}>Developers ({devs.length})</p>
+                        <p style={{ fontSize: '0.85rem', fontWeight: 500 }}>{devs.length > 0 ? devs.join(', ') : 'None assigned'}</p>
+                    </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Clock size={16} color="#94a3b8" />
+                    <div>
+                        <p style={{ fontSize: '0.7rem', color: '#64748b' }}>Started</p>
+                        <p style={{ fontSize: '0.85rem', fontWeight: 500 }}>{project.start_date ?? '—'}</p>
+                    </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <ListTodo size={16} color="#eab308" />
+                    <div>
+                        <p style={{ fontSize: '0.7rem', color: '#64748b' }}>Tasks</p>
+                        <p style={{ fontSize: '0.85rem', fontWeight: 500 }}>{tasks.length} total · {tasks.filter(t => t.status === 'DONE').length} done</p>
+                    </div>
                 </div>
             </div>
 
@@ -75,13 +123,15 @@ export default function ProjectDetailPage() {
                         <h3 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
                             <Github size={18} /> GitHub Repositories
                         </h3>
-                        <button className="btn btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
-                            onClick={() => { setShowAssetForm(!showAssetForm); setAssetForm({ asset_type: 'GITHUB', url: '', description: '' }); }}>
-                            <Plus size={14} /> Add
-                        </button>
+                        {canEdit && (
+                            <button className="btn btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
+                                onClick={() => { setShowAssetForm(!showAssetForm); setAssetForm({ asset_type: 'GITHUB', url: '', description: '' }); }}>
+                                <Plus size={14} /> Add
+                            </button>
+                        )}
                     </div>
 
-                    {showAssetForm && assetForm.asset_type === 'GITHUB' && (
+                    {canEdit && showAssetForm && assetForm.asset_type === 'GITHUB' && (
                         <form onSubmit={handleAddAsset} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem', padding: '1rem', background: '#0f172a', borderRadius: '0.75rem' }}>
                             <input placeholder="https://github.com/user/repo" required value={assetForm.url} onChange={(e) => setAssetForm({ ...assetForm, url: e.target.value })} />
                             <input placeholder="Description (e.g. Frontend repo)" value={assetForm.description} onChange={(e) => setAssetForm({ ...assetForm, description: e.target.value })} />
@@ -109,10 +159,12 @@ export default function ProjectDetailPage() {
                                             {a.description && <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: 2 }}>{a.description}</p>}
                                         </div>
                                     </div>
-                                    <button className="btn btn-outline" style={{ padding: '0.25rem', borderColor: '#ef444440', color: '#ef4444' }}
-                                        onClick={() => handleDeleteAsset(a.id)}>
-                                        <Trash2 size={14} />
-                                    </button>
+                                    {canEdit && (
+                                        <button className="btn btn-outline" style={{ padding: '0.25rem', borderColor: '#ef444440', color: '#ef4444' }}
+                                            onClick={() => handleDeleteAsset(a.id)}>
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -127,13 +179,15 @@ export default function ProjectDetailPage() {
                         <h3 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
                             <Link2 size={18} /> Project Assets
                         </h3>
-                        <button className="btn btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
-                            onClick={() => { setShowAssetForm(!showAssetForm); setAssetForm({ asset_type: 'GDRIVE', url: '', description: '' }); }}>
-                            <Plus size={14} /> Add
-                        </button>
+                        {canEdit && (
+                            <button className="btn btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
+                                onClick={() => { setShowAssetForm(!showAssetForm); setAssetForm({ asset_type: 'GDRIVE', url: '', description: '' }); }}>
+                                <Plus size={14} /> Add
+                            </button>
+                        )}
                     </div>
 
-                    {showAssetForm && assetForm.asset_type !== 'GITHUB' && (
+                    {canEdit && showAssetForm && assetForm.asset_type !== 'GITHUB' && (
                         <form onSubmit={handleAddAsset} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem', padding: '1rem', background: '#0f172a', borderRadius: '0.75rem' }}>
                             <select value={assetForm.asset_type} onChange={(e) => setAssetForm({ ...assetForm, asset_type: e.target.value })}>
                                 <option value="GDRIVE">Google Drive</option>
@@ -162,10 +216,12 @@ export default function ProjectDetailPage() {
                                         </a>
                                         <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: 2 }}>{a.asset_type === 'GDRIVE' ? 'Google Drive' : 'Document'}</p>
                                     </div>
-                                    <button className="btn btn-outline" style={{ padding: '0.25rem', borderColor: '#ef444440', color: '#ef4444' }}
-                                        onClick={() => handleDeleteAsset(a.id)}>
-                                        <Trash2 size={14} />
-                                    </button>
+                                    {canEdit && (
+                                        <button className="btn btn-outline" style={{ padding: '0.25rem', borderColor: '#ef444440', color: '#ef4444' }}
+                                            onClick={() => handleDeleteAsset(a.id)}>
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -181,13 +237,15 @@ export default function ProjectDetailPage() {
                     <h3 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
                         <ListTodo size={18} color="#06b6d4" /> Project Tasks
                     </h3>
-                    <button className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
-                        onClick={() => setShowTaskForm(!showTaskForm)}>
-                        <Plus size={14} /> Add Task
-                    </button>
+                    {canEdit && (
+                        <button className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
+                            onClick={() => setShowTaskForm(!showTaskForm)}>
+                            <Plus size={14} /> Add Task
+                        </button>
+                    )}
                 </div>
 
-                {showTaskForm && (
+                {canEdit && showTaskForm && (
                     <form onSubmit={handleAddTask} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem', padding: '1rem', background: '#0f172a', borderRadius: '0.75rem' }}>
                         <input placeholder="Task title" required value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} />
                         <input placeholder="Sprint (e.g. Sprint 1)" value={taskForm.sprint} onChange={(e) => setTaskForm({ ...taskForm, sprint: e.target.value })} />
@@ -217,7 +275,7 @@ export default function ProjectDetailPage() {
                                 <td style={{ padding: '0.75rem', color: '#94a3b8' }}>{t.assigned_to?.username ?? '—'}</td>
                             </tr>
                         )) : (
-                            <tr><td colSpan={4} style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>No tasks yet. Add one above!</td></tr>
+                            <tr><td colSpan={4} style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>No tasks yet</td></tr>
                         )}
                     </tbody>
                 </table>

@@ -10,6 +10,7 @@ import PmDashboard from './pages/pm/PmDashboard';
 import DevDashboard from './pages/dev/DevDashboard';
 import NotificationsPage from './pages/notifications/NotificationsPage';
 import ProjectDetailPage from './pages/projects/ProjectDetailPage';
+import ProjectsOverviewPage from './pages/projects/ProjectsOverviewPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import './index.css';
 
@@ -22,6 +23,12 @@ function RoleDashboard() {
     case 'DEV': return <DevDashboard />;
     default: return <DevDashboard />;
   }
+}
+
+function ProjectsRouter() {
+  const role = useAuthStore((s) => s.role);
+  if (role === 'ADMIN' || role === 'PM') return <PmDashboard />;
+  return <ProjectsOverviewPage />;
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -39,7 +46,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
           <Route index element={<RoleDashboard />} />
-          <Route path="projects" element={<PmDashboard />} />
+          <Route path="projects" element={<ProjectsRouter />} />
           <Route path="projects/:id" element={<ProjectDetailPage />} />
           <Route path="tasks" element={<DevDashboard />} />
           <Route path="analytics" element={<CeoDashboard />} />
