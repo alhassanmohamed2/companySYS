@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { getProject, getTasks, getAssets, createAsset, createTask, deleteAsset, getUsers } from '../../services/api';
+import { getProject, getTasks, getAssets, createAsset, createTask, deleteAsset, deleteProject, getUsers } from '../../services/api';
 import { ArrowLeft, Github, Link2, Plus, Trash2, ListTodo, FolderKanban, ExternalLink, X, Eye, Users, Clock } from 'lucide-react';
 
 export default function ProjectDetailPage() {
@@ -77,6 +77,17 @@ export default function ProjectDetailPage() {
                     </h1>
                     <p style={{ color: '#94a3b8', marginTop: 2, fontSize: '0.9rem' }}>{project.description}</p>
                 </div>
+                {role === 'ADMIN' && (
+                    <button className="btn btn-outline" style={{ padding: '0.4rem 0.75rem', borderColor: '#ef444440', color: '#ef4444', fontSize: '0.8rem' }}
+                        onClick={async () => {
+                            if (window.confirm(`Delete project "${project.name}"? This will also delete all tasks and assets.`)) {
+                                await deleteProject(project.id);
+                                navigate('/projects');
+                            }
+                        }}>
+                        <Trash2 size={14} /> Delete Project
+                    </button>
+                )}
                 {!canEdit && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0.4rem 0.75rem', borderRadius: '0.5rem', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
                         <Eye size={14} color="#818cf8" />
