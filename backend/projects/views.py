@@ -50,7 +50,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             permission_classes = [permissions.IsAuthenticated]
         elif self.action in ['create']:
-            permission_classes = [IsAdminUser | IsPMUser | IsCEOUser]
+            permission_classes = [IsAdminUser | IsPMUser]
         elif self.action in ['update', 'partial_update']:
             permission_classes = [permissions.IsAuthenticated]
         elif self.action == 'destroy':
