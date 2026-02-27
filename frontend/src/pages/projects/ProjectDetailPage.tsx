@@ -1,0 +1,227 @@
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { getProject, getTasks, getAssets, createAsset, createTask, deleteAsset } from '../../services/api';
+import { ArrowLeft, Github, Link2, Plus, Trash2, ListTodo, FolderKanban, ExternalLink, X } from 'lucide-react';
+
+export default function ProjectDetailPage() {
+    const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+    const [project, setProject] = useState<any>(null);
+    const [tasks, setTasks] = useState<any[]>([]);
+    const [assets, setAssets] = useState<any[]>([]);
+    const [showAssetForm, setShowAssetForm] = useState(false);
+    const [showTaskForm, setShowTaskForm] = useState(false);
+    const [assetForm, setAssetForm] = useState({ asset_type: 'GITHUB', url: '', description: '' });
+    const [taskForm, setTaskForm] = useState({ title: '', description: '', status: 'TODO', sprint: '' });
+
+    const load = () => {
+        if (!id) return;
+        getProject(Number(id)).then((r) => setProject(r.data)).catch(() => { });
+        getTasks({ project: id }).then((r) => setTasks(r.data.results ?? r.data)).catch(() => { });
+        getAssets({ project: id }).then((r) => setAssets(r.data.results ?? r.data)).catch(() => { });
+    };
+    useEffect(load, [id]);
+
+    const handleAddAsset = async (e: React.FormEvent) => {
+        e.preventDefault();
+        await createAsset({ ...assetForm, project: Number(id) });
+        setShowAssetForm(false);
+        setAssetForm({ asset_type: 'GITHUB', url: '', description: '' });
+        load();
+    };
+
+    const handleAddTask = async (e: React.FormEvent) => {
+        e.preventDefault();
+        await createTask({ ...taskForm, project: Number(id) });
+        setShowTaskForm(false);
+        setTaskForm({ title: '', description: '', status: 'TODO', sprint: '' });
+        load();
+    };
+
+    const handleDeleteAsset = async (assetId: number) => {
+        await deleteAsset(assetId);
+        load();
+    };
+
+    const githubAssets = assets.filter((a) => a.asset_type === 'GITHUB');
+    const otherAssets = assets.filter((a) => a.asset_type !== 'GITHUB');
+
+    const statusBadge = (status: string) => {
+        const map: Record<string, string> = { TODO: 'badge-todo', IN_PROGRESS: 'badge-progress', REVIEW: 'badge-review', DONE: 'badge-done' };
+        return <span className={`badge ${map[status] ?? 'badge-todo'}`}>{status.replace('_', ' ')}</span>;
+    };
+
+    if (!project) return <div style={{ padding: '2rem', color: '#64748b' }}>Loading...</div>;
+
+    return (
+        <div className="animate-in">
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '2rem' }}>
+                <button className="btn btn-outline" style={{ padding: '0.4rem' }} onClick={() => navigate('/projects')}>
+                    <ArrowLeft size={18} />
+                </button>
+                <div>
+                    <h1 style={{ fontSize: '1.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <FolderKanban size={24} color="#6366f1" /> {project.name}
+                    </h1>
+                    <p style={{ color: '#94a3b8', marginTop: 2, fontSize: '0.9rem' }}>{project.description}</p>
+                </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                {/* ── GitHub Repositories ── */}
+                <div className="card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Github size={18} /> GitHub Repositories
+                        </h3>
+                        <button className="btn btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
+                            onClick={() => { setShowAssetForm(!showAssetForm); setAssetForm({ asset_type: 'GITHUB', url: '', description: '' }); }}>
+                            <Plus size={14} /> Add
+                        </button>
+                    </div>
+
+                    {showAssetForm && assetForm.asset_type === 'GITHUB' && (
+                        <form onSubmit={handleAddAsset} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem', padding: '1rem', background: '#0f172a', borderRadius: '0.75rem' }}>
+                            <input placeholder="https://github.com/user/repo" required value={assetForm.url} onChange={(e) => setAssetForm({ ...assetForm, url: e.target.value })} />
+                            <input placeholder="Description (e.g. Frontend repo)" value={assetForm.description} onChange={(e) => setAssetForm({ ...assetForm, description: e.target.value })} />
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <button type="submit" className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem' }}><Plus size={14} /> Add Repo</button>
+                                <button type="button" className="btn btn-outline" style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem' }} onClick={() => setShowAssetForm(false)}><X size={14} /></button>
+                            </div>
+                        </form>
+                    )}
+
+                    {githubAssets.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {githubAssets.map((a: any) => (
+                                <div key={a.id} style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    padding: '0.75rem', borderRadius: '0.5rem', background: '#0f172a', border: '1px solid #1e293b',
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                                        <Github size={18} color="#94a3b8" />
+                                        <div style={{ minWidth: 0 }}>
+                                            <a href={a.url} target="_blank" rel="noopener noreferrer"
+                                                style={{ color: '#818cf8', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                {a.url.replace('https://github.com/', '')} <ExternalLink size={12} />
+                                            </a>
+                                            {a.description && <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: 2 }}>{a.description}</p>}
+                                        </div>
+                                    </div>
+                                    <button className="btn btn-outline" style={{ padding: '0.25rem', borderColor: '#ef444440', color: '#ef4444' }}
+                                        onClick={() => handleDeleteAsset(a.id)}>
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p style={{ color: '#64748b', fontSize: '0.85rem', textAlign: 'center', padding: '1.5rem 0' }}>No GitHub repos linked yet</p>
+                    )}
+                </div>
+
+                {/* ── Other Assets ── */}
+                <div className="card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Link2 size={18} /> Project Assets
+                        </h3>
+                        <button className="btn btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
+                            onClick={() => { setShowAssetForm(!showAssetForm); setAssetForm({ asset_type: 'GDRIVE', url: '', description: '' }); }}>
+                            <Plus size={14} /> Add
+                        </button>
+                    </div>
+
+                    {showAssetForm && assetForm.asset_type !== 'GITHUB' && (
+                        <form onSubmit={handleAddAsset} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem', padding: '1rem', background: '#0f172a', borderRadius: '0.75rem' }}>
+                            <select value={assetForm.asset_type} onChange={(e) => setAssetForm({ ...assetForm, asset_type: e.target.value })}>
+                                <option value="GDRIVE">Google Drive</option>
+                                <option value="DOC">Document</option>
+                            </select>
+                            <input placeholder="URL" required value={assetForm.url} onChange={(e) => setAssetForm({ ...assetForm, url: e.target.value })} />
+                            <input placeholder="Description" value={assetForm.description} onChange={(e) => setAssetForm({ ...assetForm, description: e.target.value })} />
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <button type="submit" className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem' }}><Plus size={14} /> Add</button>
+                                <button type="button" className="btn btn-outline" style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem' }} onClick={() => setShowAssetForm(false)}><X size={14} /></button>
+                            </div>
+                        </form>
+                    )}
+
+                    {otherAssets.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {otherAssets.map((a: any) => (
+                                <div key={a.id} style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    padding: '0.75rem', borderRadius: '0.5rem', background: '#0f172a', border: '1px solid #1e293b',
+                                }}>
+                                    <div style={{ minWidth: 0 }}>
+                                        <a href={a.url} target="_blank" rel="noopener noreferrer"
+                                            style={{ color: '#818cf8', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                            {a.description || a.url} <ExternalLink size={12} />
+                                        </a>
+                                        <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: 2 }}>{a.asset_type === 'GDRIVE' ? 'Google Drive' : 'Document'}</p>
+                                    </div>
+                                    <button className="btn btn-outline" style={{ padding: '0.25rem', borderColor: '#ef444440', color: '#ef4444' }}
+                                        onClick={() => handleDeleteAsset(a.id)}>
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p style={{ color: '#64748b', fontSize: '0.85rem', textAlign: 'center', padding: '1.5rem 0' }}>No assets linked yet</p>
+                    )}
+                </div>
+            </div>
+
+            {/* ── Tasks ── */}
+            <div className="card" style={{ marginTop: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <ListTodo size={18} color="#06b6d4" /> Project Tasks
+                    </h3>
+                    <button className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
+                        onClick={() => setShowTaskForm(!showTaskForm)}>
+                        <Plus size={14} /> Add Task
+                    </button>
+                </div>
+
+                {showTaskForm && (
+                    <form onSubmit={handleAddTask} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem', padding: '1rem', background: '#0f172a', borderRadius: '0.75rem' }}>
+                        <input placeholder="Task title" required value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} />
+                        <input placeholder="Sprint (e.g. Sprint 1)" value={taskForm.sprint} onChange={(e) => setTaskForm({ ...taskForm, sprint: e.target.value })} />
+                        <textarea placeholder="Description" style={{ gridColumn: '1 / -1' }} value={taskForm.description} onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} />
+                        <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8 }}>
+                            <button type="submit" className="btn btn-primary" style={{ fontSize: '0.75rem' }}><Plus size={14} /> Create Task</button>
+                            <button type="button" className="btn btn-outline" style={{ fontSize: '0.75rem' }} onClick={() => setShowTaskForm(false)}>Cancel</button>
+                        </div>
+                    </form>
+                )}
+
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                    <thead>
+                        <tr style={{ borderBottom: '1px solid #334155' }}>
+                            <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Task</th>
+                            <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Sprint</th>
+                            <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Status</th>
+                            <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Assignee</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {tasks.length > 0 ? tasks.map((t: any) => (
+                            <tr key={t.id} style={{ borderBottom: '1px solid #1e293b' }}>
+                                <td style={{ padding: '0.75rem', fontWeight: 500 }}>{t.title}</td>
+                                <td style={{ padding: '0.75rem', color: '#94a3b8' }}>{t.sprint || '—'}</td>
+                                <td style={{ padding: '0.75rem' }}>{statusBadge(t.status)}</td>
+                                <td style={{ padding: '0.75rem', color: '#94a3b8' }}>{t.assigned_to?.username ?? '—'}</td>
+                            </tr>
+                        )) : (
+                            <tr><td colSpan={4} style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>No tasks yet. Add one above!</td></tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}

@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: company_sys_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: company_sys
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_USER: django_user
+      MYSQL_PASSWORD: djangopassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:alpine
+    container_name: company_sys_redis
+    ports:
+      - "6379:6379"
+
+  backend:
+    build: ./backend
+    container_name: company_sys_backend
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python seed.py &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=db
+      - DB_NAME=company_sys
+      - DB_USER=django_user
+      - DB_PASS=djangopassword
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  celery:
+    build: ./backend
+    container_name: company_sys_celery
+    command: celery -A company_sys_backend worker --loglevel=info
+    volumes:
+      - ./backend:/app
+    environment:
+      - DB_HOST=db
+      - DB_NAME=company_sys
+      - DB_USER=django_user
+      - DB_PASS=djangopassword
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  frontend:
+    build: ./frontend
+    container_name: company_sys_frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000/api
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
