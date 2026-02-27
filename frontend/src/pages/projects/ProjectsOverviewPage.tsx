@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { getProjects, getTasks } from '../../services/api';
-import { FolderKanban, Users, Eye, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { FolderKanban, Users, Eye, CheckCircle2, Clock, AlertCircle, Search, Download } from 'lucide-react';
+import { generateCSV } from '../../utils/exportUtils';
 
 export default function ProjectsOverviewPage() {
     const { role } = useAuthStore();
     const navigate = useNavigate();
     const [projects, setProjects] = useState<any[]>([]);
     const [tasks, setTasks] = useState<any[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         getProjects().then((r) => setProjects(r.data.results ?? r.data)).catch(() => { });
@@ -18,20 +20,64 @@ export default function ProjectsOverviewPage() {
     const getProjectTasks = (projectId: number) => tasks.filter((t: any) => t.project === projectId);
     const getStatusCount = (projectTasks: any[], status: string) => projectTasks.filter((t: any) => t.status === status).length;
 
+    const filteredProjects = projects.filter(p =>
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
+    const handleExport = () => {
+        const exportData = filteredProjects.map(p => {
+            const pTasks = getProjectTasks(p.id);
+            const done = getStatusCount(pTasks, 'DONE');
+            const progress = pTasks.length > 0 ? Math.round((done / pTasks.length) * 100) : 0;
+            return {
+                "Project ID": p.id,
+                "Name": p.name,
+                "Description": p.description || "N/A",
+                "Project Manager": p.pm?.username || "Unassigned",
+                "Start Date": p.start_date || "N/A",
+                "Total Tasks": pTasks.length,
+                "Tasks Done": done,
+                "Completion %": `${progress}%`
+            };
+        });
+        generateCSV(exportData, "Projects_Report");
+    };
+
     return (
         <div className="animate-in">
-            <div style={{ marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <FolderKanban size={24} /> All Projects
-                </h1>
-                <p style={{ color: '#94a3b8', marginTop: 4 }}>
-                    {role === 'CEO' ? 'Company-wide project overview' : 'Projects you\'re involved in'} — {projects.length} project{projects.length !== 1 ? 's' : ''}
-                </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                    <h1 style={{ fontSize: '1.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <FolderKanban size={24} /> All Projects
+                    </h1>
+                    <p style={{ color: '#94a3b8', marginTop: 4 }}>
+                        {role === 'CEO' ? 'Company-wide project overview' : 'Projects you\'re involved in'} — {filteredProjects.length} project{filteredProjects.length !== 1 ? 's' : ''}
+                    </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ position: 'relative', width: 280 }}>
+                        <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: 12, top: 10 }} />
+                        <input
+                            type="text"
+                            placeholder="Search projects..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            style={{ paddingLeft: '2.5rem', width: '100%' }}
+                        />
+                    </div>
+                    {(role === 'CEO' || role === 'ADMIN') && (
+                        <button className="btn btn-outline" onClick={handleExport}>
+                            <Download size={16} /> Export CSV
+                        </button>
+                    )}
+                </div>
             </div>
 
-            {projects.length > 0 ? (
+            {filteredProjects.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    {projects.map((p: any) => {
+                    {filteredProjects.map((p: any) => {
                         const pTasks = getProjectTasks(p.id);
                         const done = getStatusCount(pTasks, 'DONE');
                         const inProgress = getStatusCount(pTasks, 'IN_PROGRESS');

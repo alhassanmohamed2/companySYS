@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { getProjects, getTasks, createProject, getUsers } from '../../services/api';
-import { FolderKanban, Plus, ListTodo } from 'lucide-react';
+import { FolderKanban, Plus, ListTodo, Search, Filter, Download } from 'lucide-react';
+import { generateCSV } from '../../utils/exportUtils';
 
 export default function PmDashboard() {
     const { username } = useAuthStore();
@@ -12,6 +13,9 @@ export default function PmDashboard() {
     const [users, setUsers] = useState<any[]>([]);
     const [showNewProject, setShowNewProject] = useState(false);
     const [newProject, setNewProject] = useState({ name: '', description: '', start_date: '', pm_id: '' });
+
+    const [searchTask, setSearchTask] = useState('');
+    const [filterStatus, setFilterStatus] = useState('ALL');
 
     const load = () => {
         getProjects().then((r) => setProjects(r.data.results ?? r.data)).catch(() => { });
@@ -52,6 +56,26 @@ export default function PmDashboard() {
         return <span style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, backgroundColor: `${color}20`, color: color }}>
             {priority}
         </span>;
+    };
+
+    const filteredTasks = tasks.filter(t => {
+        const matchesSearch = t.title.toLowerCase().includes(searchTask.toLowerCase()) ||
+            (t.assigned_to?.username?.toLowerCase() || '').includes(searchTask.toLowerCase());
+        const matchesStatus = filterStatus === 'ALL' || t.status === filterStatus;
+        return matchesSearch && matchesStatus;
+    });
+
+    const handleExportTasks = () => {
+        const exportData = filteredTasks.map((t: any) => ({
+            "Task ID": t.id,
+            "Title": t.title,
+            "Project": projects.find(p => p.id === t.project)?.name || "Unknown",
+            "Priority": t.priority,
+            "Status": t.status,
+            "Sprint": t.sprint || "—",
+            "Assigned To": t.assigned_to?.username || "—"
+        }));
+        generateCSV(exportData, "PM_Tasks_Report");
     };
 
     return (
@@ -138,9 +162,40 @@ export default function PmDashboard() {
 
             {/* Tasks Table */}
             <div className="card">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <ListTodo size={18} color="#06b6d4" /> All Tasks
-                </h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <ListTodo size={18} color="#06b6d4" /> All Tasks
+                    </h3>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <div style={{ position: 'relative', width: 220 }}>
+                            <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 10, top: 10 }} />
+                            <input
+                                type="text"
+                                placeholder="Search tasks or assignees..."
+                                value={searchTask}
+                                onChange={(e) => setSearchTask(e.target.value)}
+                                style={{ paddingLeft: '2.2rem', paddingRight: '0.75rem', paddingTop: '0.4rem', paddingBottom: '0.4rem', width: '100%', fontSize: '0.8rem' }}
+                            />
+                        </div>
+                        <div style={{ position: 'relative' }}>
+                            <Filter size={14} color="#94a3b8" style={{ position: 'absolute', left: 10, top: 10 }} />
+                            <select
+                                value={filterStatus}
+                                onChange={(e) => setFilterStatus(e.target.value)}
+                                style={{ paddingLeft: '2.2rem', paddingRight: '0.75rem', paddingTop: '0.4rem', paddingBottom: '0.4rem', fontSize: '0.8rem' }}
+                            >
+                                <option value="ALL">All Statuses</option>
+                                <option value="TODO">To-Do</option>
+                                <option value="IN_PROGRESS">In Progress</option>
+                                <option value="REVIEW">Review</option>
+                                <option value="DONE">Done</option>
+                            </select>
+                        </div>
+                        <button className="btn btn-outline" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }} onClick={handleExportTasks}>
+                            <Download size={14} /> Export CSV
+                        </button>
+                    </div>
+                </div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                     <thead>
                         <tr style={{ borderBottom: '1px solid #334155' }}>
@@ -152,7 +207,7 @@ export default function PmDashboard() {
                         </tr>
                     </thead>
                     <tbody>
-                        {tasks.length > 0 ? tasks.map((t: any, i: number) => (
+                        {filteredTasks.length > 0 ? filteredTasks.map((t: any, i: number) => (
                             <tr key={i} style={{ borderBottom: '1px solid #1e293b' }}>
                                 <td style={{ padding: '0.75rem', fontWeight: 500 }}>{t.title}</td>
                                 <td style={{ padding: '0.75rem' }}>{priorityBadge(t.priority)}</td>
@@ -161,7 +216,7 @@ export default function PmDashboard() {
                                 <td style={{ padding: '0.75rem', color: '#94a3b8' }}>{t.assigned_to?.username ?? '—'}</td>
                             </tr>
                         )) : (
-                            <tr><td colSpan={5} style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>No tasks yet</td></tr>
+                            <tr><td colSpan={5} style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>No tasks match your filters</td></tr>
                         )}
                     </tbody>
                 </table>

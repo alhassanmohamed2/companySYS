@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getProjects, getTasks } from '../../services/api';
-import { BarChart3, FolderKanban, TrendingUp, Clock, Users, CheckCircle2 } from 'lucide-react';
+import { BarChart3, FolderKanban, TrendingUp, Clock, Users, CheckCircle2, Download } from 'lucide-react';
+import { generateCSV } from '../../utils/exportUtils';
 
 export default function CeoDashboard() {
     const [projectCount, setProjectCount] = useState(0);
@@ -24,11 +25,28 @@ export default function CeoDashboard() {
 
     const completionRate = taskStats.total > 0 ? Math.round((taskStats.done / taskStats.total) * 100) : 0;
 
+    const handleExport = () => {
+        const exportData = projects.map((p: any) => ({
+            "Project Name": p.name,
+            "Project Manager": p.pm?.username || "—",
+            "Start Date": p.start_date || "—",
+            "End Date": p.end_date || "—",
+            "Status": p.status || "—"
+        }));
+        // Adding a summary row at the top or bottom isn't structured well for CSV, so we export the projects list
+        generateCSV(exportData, "Executive_Project_Report");
+    };
+
     return (
         <div className="animate-in">
-            <div style={{ marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 700 }}>Executive Overview</h1>
-                <p style={{ color: '#94a3b8', marginTop: 4 }}>High-level analytics &amp; performance metrics</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                    <h1 style={{ fontSize: '1.75rem', fontWeight: 700 }}>Executive Overview</h1>
+                    <p style={{ color: '#94a3b8', marginTop: 4 }}>High-level analytics &amp; performance metrics</p>
+                </div>
+                <button className="btn btn-outline" onClick={handleExport}>
+                    <Download size={16} /> Export Report
+                </button>
             </div>
 
             {/* KPI Cards */}
