@@ -22,6 +22,33 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Project.objects.filter(tasks__assigned_to=user).distinct()
         return super().get_queryset()
 
+    def perform_create(self, serializer):
+        project = serializer.save()
+        ActivityLog.objects.create(
+            user=self.request.user,
+            action=f"Created Project: {project.name}",
+            target_type='Project',
+            target_id=project.id
+        )
+
+    def perform_update(self, serializer):
+        project = serializer.save()
+        ActivityLog.objects.create(
+            user=self.request.user,
+            action=f"Updated Project: {project.name}",
+            target_type='Project',
+            target_id=project.id
+        )
+
+    def perform_destroy(self, instance):
+        ActivityLog.objects.create(
+            user=self.request.user,
+            action=f"Deleted Project: {instance.name}",
+            target_type='Project',
+            target_id=instance.id
+        )
+        instance.delete()
+
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             permission_classes = [permissions.IsAuthenticated]
@@ -45,6 +72,39 @@ class TaskViewSet(viewsets.ModelViewSet):
         elif getattr(user, 'role', None) == 'DEV':
             return Task.objects.filter(assigned_to=user)
         return super().get_queryset()
+
+    def perform_create(self, serializer):
+        task = serializer.save()
+        ActivityLog.objects.create(
+            user=self.request.user,
+            action=f"Created Task: {task.title} under Project: {task.project.name}",
+            target_type='Task',
+            target_id=task.id
+        )
+
+    def perform_update(self, serializer):
+        # Determine if status changed to mention it in the log
+        old_status = serializer.instance.status if serializer.instance else None
+        task = serializer.save()
+        action_text = f"Updated Task: {task.title}"
+        if old_status and old_status != task.status:
+            action_text = f"Moved Task: {task.title} from {old_status} to {task.status}"
+            
+        ActivityLog.objects.create(
+            user=self.request.user,
+            action=action_text,
+            target_type='Task',
+            target_id=task.id
+        )
+
+    def perform_destroy(self, instance):
+        ActivityLog.objects.create(
+            user=self.request.user,
+            action=f"Deleted Task: {instance.title}",
+            target_type='Task',
+            target_id=instance.id
+        )
+        instance.delete()
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
@@ -88,7 +148,13 @@ class TaskCommentViewSet(viewsets.ModelViewSet):
     filterset_fields = ['task']
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        comment = serializer.save(user=self.request.user)
+        ActivityLog.objects.create(
+            user=self.request.user,
+            action=f"Commented on Task: {comment.task.title}",
+            target_type='Task',
+            target_id=comment.task.id
+        )
         
 class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ActivityLog.objects.all().order_by('-created_at')

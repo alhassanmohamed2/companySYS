@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { getProjects, getTasks, getNotifications } from '../../services/api';
+import { getProjects, getTasks, getNotifications, getActivityLogs } from '../../services/api';
 import {
-    Users, FolderKanban, ListTodo, Bell, TrendingUp, Clock, CheckCircle2, AlertTriangle
+    Users, FolderKanban, ListTodo, Bell, TrendingUp, Clock, CheckCircle2, AlertTriangle, Activity
 } from 'lucide-react';
 
 interface StatCard { label: string; value: number | string; icon: React.ReactNode; color: string }
@@ -13,19 +13,22 @@ export default function AdminDashboard() {
     const navigate = useNavigate();
     const [stats, setStats] = useState<StatCard[]>([]);
     const [recentTasks, setRecentTasks] = useState<any[]>([]);
+    const [activityLogs, setActivityLogs] = useState<any[]>([]);
 
     useEffect(() => {
-        Promise.all([getProjects(), getTasks(), getNotifications()]).then(([pRes, tRes, nRes]) => {
+        Promise.all([getProjects(), getTasks(), getNotifications(), getActivityLogs()]).then(([pRes, tRes, nRes, aRes]) => {
             const projects = pRes.data.results ?? pRes.data;
             const tasks = tRes.data.results ?? tRes.data;
             const notifs = nRes.data.results ?? nRes.data;
+            const logs = aRes.data.results ?? aRes.data;
             setStats([
                 { label: 'Total Projects', value: projects.length, icon: <FolderKanban size={20} />, color: '#6366f1' },
                 { label: 'Total Tasks', value: tasks.length, icon: <ListTodo size={20} />, color: '#06b6d4' },
                 { label: 'Completed', value: tasks.filter((t: any) => t.status === 'DONE').length, icon: <CheckCircle2 size={20} />, color: '#22c55e' },
                 { label: 'Notifications', value: notifs.filter((n: any) => !n.is_read).length, icon: <Bell size={20} />, color: '#eab308' },
             ]);
-            setRecentTasks(tasks.slice(0, 6));
+            setRecentTasks(tasks.slice(0, 5));
+            setActivityLogs(logs.slice(0, 8));
         }).catch(() => {
             setStats([
                 { label: 'Total Projects', value: '—', icon: <FolderKanban size={20} />, color: '#6366f1' },
@@ -97,32 +100,61 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            {/* Recent Tasks */}
-            <div className="card">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Clock size={18} color="#06b6d4" /> Recent Tasks
-                </h3>
-                <div style={{ overflow: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                        <thead>
-                            <tr style={{ borderBottom: '1px solid #334155' }}>
-                                <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Task</th>
-                                <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Status</th>
-                                <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Assigned To</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {recentTasks.length > 0 ? recentTasks.map((t: any, i: number) => (
-                                <tr key={i} style={{ borderBottom: '1px solid #1e293b' }}>
-                                    <td style={{ padding: '0.75rem' }}>{t.title}</td>
-                                    <td style={{ padding: '0.75rem' }}>{statusBadge(t.status)}</td>
-                                    <td style={{ padding: '0.75rem', color: '#94a3b8' }}>{t.assigned_to?.username ?? '—'}</td>
+            {/* Bottom Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem' }}>
+                {/* Recent Tasks */}
+                <div className="card">
+                    <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Clock size={18} color="#06b6d4" /> Recent Tasks
+                    </h3>
+                    <div style={{ overflow: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '1px solid #334155' }}>
+                                    <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Task</th>
+                                    <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Status</th>
+                                    <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Assigned To</th>
                                 </tr>
-                            )) : (
-                                <tr><td colSpan={3} style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>No tasks yet</td></tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {recentTasks.length > 0 ? recentTasks.map((t: any, i: number) => (
+                                    <tr key={i} style={{ borderBottom: '1px solid #1e293b' }}>
+                                        <td style={{ padding: '0.75rem' }}>{t.title}</td>
+                                        <td style={{ padding: '0.75rem' }}>{statusBadge(t.status)}</td>
+                                        <td style={{ padding: '0.75rem', color: '#94a3b8' }}>{t.assigned_to?.username ?? '—'}</td>
+                                    </tr>
+                                )) : (
+                                    <tr><td colSpan={3} style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>No tasks yet</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Activity Logs */}
+                <div className="card">
+                    <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Activity size={18} color="#22c55e" /> System Activity Log
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {activityLogs.length > 0 ? activityLogs.map((log: any) => (
+                            <div key={log.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem' }}>
+                                <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#22c55e20', color: '#4ade80', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0 }}>
+                                    {log.user?.username?.charAt(0).toUpperCase() ?? 'S'}
+                                </div>
+                                <div>
+                                    <p style={{ fontSize: '0.8rem', color: '#e2e8f0', marginBottom: 2 }}>
+                                        <span style={{ fontWeight: 600 }}>{log.user?.username ?? 'System'}</span> {log.action}
+                                    </p>
+                                    <p style={{ fontSize: '0.65rem', color: '#64748b' }}>
+                                        {new Date(log.created_at).toLocaleString()}
+                                    </p>
+                                </div>
+                            </div>
+                        )) : (
+                            <p style={{ fontSize: '0.85rem', color: '#64748b', textAlign: 'center', padding: '1.5rem' }}>No recent activity.</p>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
