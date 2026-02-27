@@ -1,12 +1,14 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ProjectViewSet, TaskViewSet, AssetLinkViewSet, NotificationViewSet
+from .views import ProjectViewSet, TaskViewSet, AssetLinkViewSet, NotificationViewSet, TaskCommentViewSet, ActivityLogViewSet
 
 router = DefaultRouter()
 router.register(r'projects', ProjectViewSet, basename='project')
 router.register(r'tasks', TaskViewSet, basename='task')
 router.register(r'assets', AssetLinkViewSet, basename='asset')
 router.register(r'notifications', NotificationViewSet, basename='notification')
+router.register(r'task-comments', TaskCommentViewSet, basename='task-comment')
+router.register(r'activity-logs', ActivityLogViewSet, basename='activity-log')
 
 urlpatterns = [
     path('', include(router.urls)),

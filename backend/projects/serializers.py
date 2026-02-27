@@ -1,11 +1,24 @@
 from rest_framework import serializers
-from .models import Project, Task, AssetLink, Notification
+from .models import Project, Task, AssetLink, Notification, TaskComment, ActivityLog
 from users.models import User
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'role']
+
+class TaskCommentSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    class Meta:
+        model = TaskComment
+        fields = '__all__'
+        read_only_fields = ['user', 'task']
+
+class ActivityLogSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    class Meta:
+        model = ActivityLog
+        fields = '__all__'
 
 class TaskSerializer(serializers.ModelSerializer):
     assigned_to = UserSerializer(read_only=True)
@@ -16,6 +29,7 @@ class TaskSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True
     )
+    comments = TaskCommentSerializer(many=True, read_only=True)
 
     class Meta:
         model = Task

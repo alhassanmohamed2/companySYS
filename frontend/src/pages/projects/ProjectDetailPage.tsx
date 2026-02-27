@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { getProject, getTasks, getAssets, createAsset, createTask, deleteAsset, deleteProject, getUsers } from '../../services/api';
-import { ArrowLeft, Github, Link2, Plus, Trash2, ListTodo, FolderKanban, ExternalLink, X, Eye, Users, Clock } from 'lucide-react';
+import { getProject, getTasks, getAssets, createAsset, createTask, deleteAsset, deleteProject, getUsers, createTaskComment } from '../../services/api';
+import { ArrowLeft, Github, Link2, Plus, Trash2, ListTodo, FolderKanban, ExternalLink, X, Eye, Users, Clock, MessageSquare, Send } from 'lucide-react';
 
 export default function ProjectDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -17,7 +17,10 @@ export default function ProjectDetailPage() {
     const [showAssetForm, setShowAssetForm] = useState(false);
     const [showTaskForm, setShowTaskForm] = useState(false);
     const [assetForm, setAssetForm] = useState({ asset_type: 'GITHUB', url: '', description: '' });
-    const [taskForm, setTaskForm] = useState({ title: '', description: '', status: 'TODO', sprint: '', assigned_to_id: '' });
+    const [taskForm, setTaskForm] = useState({ title: '', description: '', status: 'TODO', priority: 'MEDIUM', sprint: '', assigned_to_id: '' });
+
+    const [expandedTaskId, setExpandedTaskId] = useState<number | null>(null);
+    const [newComment, setNewComment] = useState('');
 
     const load = () => {
         if (!id) return;
@@ -40,11 +43,18 @@ export default function ProjectDetailPage() {
 
     const handleAddTask = async (e: React.FormEvent) => {
         e.preventDefault();
-        const payload: any = { title: taskForm.title, description: taskForm.description, status: taskForm.status, sprint: taskForm.sprint, project: Number(id) };
+        const payload: any = { title: taskForm.title, description: taskForm.description, status: taskForm.status, priority: taskForm.priority, sprint: taskForm.sprint, project: Number(id) };
         if (taskForm.assigned_to_id) payload.assigned_to_id = Number(taskForm.assigned_to_id);
         await createTask(payload);
         setShowTaskForm(false);
-        setTaskForm({ title: '', description: '', status: 'TODO', sprint: '', assigned_to_id: '' });
+        setTaskForm({ title: '', description: '', status: 'TODO', priority: 'MEDIUM', sprint: '', assigned_to_id: '' });
+        load();
+    };
+
+    const handleAddComment = async (taskId: number) => {
+        if (!newComment.trim()) return;
+        await createTaskComment({ task: taskId, content: newComment });
+        setNewComment('');
         load();
     };
 
@@ -60,6 +70,14 @@ export default function ProjectDetailPage() {
     const statusBadge = (status: string) => {
         const map: Record<string, string> = { TODO: 'badge-todo', IN_PROGRESS: 'badge-progress', REVIEW: 'badge-review', DONE: 'badge-done' };
         return <span className={`badge ${map[status] ?? 'badge-todo'}`}>{status.replace('_', ' ')}</span>;
+    };
+
+    const priorityBadge = (priority: string) => {
+        const pMap: Record<string, string> = { LOW: '#94a3b8', MEDIUM: '#6366f1', HIGH: '#f97316', URGENT: '#ef4444' };
+        const color = pMap[priority] || '#94a3b8';
+        return <span style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, backgroundColor: `${color}20`, color: color }}>
+            {priority}
+        </span>;
     };
 
     if (!project) return <div style={{ padding: '2rem', color: '#64748b' }}>Loading...</div>;
@@ -266,13 +284,18 @@ export default function ProjectDetailPage() {
                     <form onSubmit={handleAddTask} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem', padding: '1rem', background: '#0f172a', borderRadius: '0.75rem' }}>
                         <input placeholder="Task title" required value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} />
                         <input placeholder="Sprint (e.g. Sprint 1)" value={taskForm.sprint} onChange={(e) => setTaskForm({ ...taskForm, sprint: e.target.value })} />
+                        <select value={taskForm.priority} onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}>
+                            <option value="LOW">Low Priority</option>
+                            <option value="MEDIUM">Medium Priority</option>
+                            <option value="HIGH">High Priority</option>
+                            <option value="URGENT">Urgent</option>
+                        </select>
                         <select value={taskForm.assigned_to_id} onChange={(e) => setTaskForm({ ...taskForm, assigned_to_id: e.target.value })}>
                             <option value="">— Assign Developer —</option>
                             {devUsers.map((u: any) => (
                                 <option key={u.id} value={u.id}>{u.username} ({u.email})</option>
                             ))}
                         </select>
-                        <div />
                         <textarea placeholder="Description" style={{ gridColumn: '1 / -1' }} value={taskForm.description} onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} />
                         <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8 }}>
                             <button type="submit" className="btn btn-primary" style={{ fontSize: '0.75rem' }}><Plus size={14} /> Create Task</button>
@@ -285,21 +308,75 @@ export default function ProjectDetailPage() {
                     <thead>
                         <tr style={{ borderBottom: '1px solid #334155' }}>
                             <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Task</th>
+                            <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Priority</th>
                             <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Sprint</th>
                             <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Status</th>
                             <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Assignee</th>
+                            <th style={{ textAlign: 'right', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {tasks.length > 0 ? tasks.map((t: any) => (
-                            <tr key={t.id} style={{ borderBottom: '1px solid #1e293b' }}>
-                                <td style={{ padding: '0.75rem', fontWeight: 500 }}>{t.title}</td>
-                                <td style={{ padding: '0.75rem', color: '#94a3b8' }}>{t.sprint || '—'}</td>
-                                <td style={{ padding: '0.75rem' }}>{statusBadge(t.status)}</td>
-                                <td style={{ padding: '0.75rem', color: '#94a3b8' }}>{t.assigned_to?.username ?? '—'}</td>
-                            </tr>
+                            <React.Fragment key={t.id}>
+                                <tr style={{ borderBottom: expandedTaskId === t.id ? 'none' : '1px solid #1e293b', background: expandedTaskId === t.id ? '#1e293b50' : 'transparent' }}>
+                                    <td style={{ padding: '0.75rem', fontWeight: 500 }}>{t.title}</td>
+                                    <td style={{ padding: '0.75rem' }}>{priorityBadge(t.priority)}</td>
+                                    <td style={{ padding: '0.75rem', color: '#94a3b8' }}>{t.sprint || '—'}</td>
+                                    <td style={{ padding: '0.75rem' }}>{statusBadge(t.status)}</td>
+                                    <td style={{ padding: '0.75rem', color: '#94a3b8' }}>{t.assigned_to?.username ?? '—'}</td>
+                                    <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                                        <button className="btn btn-outline" style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                            onClick={() => setExpandedTaskId(expandedTaskId === t.id ? null : t.id)}>
+                                            <MessageSquare size={14} />
+                                            {t.comments?.length || 0}
+                                        </button>
+                                    </td>
+                                </tr>
+                                {expandedTaskId === t.id && (
+                                    <tr style={{ borderBottom: '1px solid #1e293b', background: '#1e293b50' }}>
+                                        <td colSpan={6} style={{ padding: '1rem', paddingTop: 0 }}>
+                                            <div style={{ background: '#0f172a', borderRadius: '0.5rem', padding: '1rem', border: '1px solid #334155' }}>
+                                                <h4 style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.75rem' }}>Task Comments & Activity</h4>
+
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: 250, overflowY: 'auto', marginBottom: '1rem' }}>
+                                                    {t.comments && t.comments.length > 0 ? t.comments.map((c: any) => (
+                                                        <div key={c.id} style={{ display: 'flex', gap: '0.75rem' }}>
+                                                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#6366f130', color: '#818cf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0 }}>
+                                                                {c.user?.username?.charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <div style={{ background: '#1e293b', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', borderTopLeftRadius: 0, flex: 1 }}>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
+                                                                    <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>{c.user?.username}</span>
+                                                                    <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{new Date(c.created_at).toLocaleString()}</span>
+                                                                </div>
+                                                                <p style={{ fontSize: '0.8rem', color: '#cbd5e1', whiteSpace: 'pre-wrap' }}>{c.content}</p>
+                                                            </div>
+                                                        </div>
+                                                    )) : (
+                                                        <p style={{ fontSize: '0.8rem', color: '#64748b', textAlign: 'center', fontStyle: 'italic', padding: '1rem 0' }}>No comments yet.</p>
+                                                    )}
+                                                </div>
+
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Add a comment..."
+                                                        value={newComment}
+                                                        onChange={(e) => setNewComment(e.target.value)}
+                                                        onKeyDown={(e) => e.key === 'Enter' && handleAddComment(t.id)}
+                                                        style={{ flex: 1, padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}
+                                                    />
+                                                    <button className="btn btn-primary" style={{ padding: '0.5rem' }} onClick={() => handleAddComment(t.id)} disabled={!newComment.trim()}>
+                                                        <Send size={16} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </React.Fragment>
                         )) : (
-                            <tr><td colSpan={4} style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>No tasks yet</td></tr>
+                            <tr><td colSpan={6} style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>No tasks yet</td></tr>
                         )}
                     </tbody>
                 </table>

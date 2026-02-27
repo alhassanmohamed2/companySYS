@@ -26,6 +26,14 @@ export default function DevDashboard() {
         load();
     };
 
+    const priorityBadge = (priority: string) => {
+        const pMap: Record<string, string> = { LOW: '#94a3b8', MEDIUM: '#6366f1', HIGH: '#f97316', URGENT: '#ef4444' };
+        const color = pMap[priority] || '#94a3b8';
+        return <span style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 600, backgroundColor: `${color}20`, color: color, display: 'inline-block', marginBottom: 6 }}>
+            {priority}
+        </span>;
+    };
+
     return (
         <div className="animate-in">
             <div style={{ marginBottom: '2rem' }}>
@@ -49,6 +57,7 @@ export default function DevDashboard() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                 {colTasks.map((t: any) => (
                                     <div key={t.id} className="card" style={{ padding: '1rem' }}>
+                                        {t.priority && priorityBadge(t.priority)}
                                         <p style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: 6 }}>{t.title}</p>
                                         {t.sprint && <p style={{ fontSize: '0.7rem', color: '#64748b', marginBottom: 8 }}>Sprint: {t.sprint}</p>}
                                         {t.due_date && (

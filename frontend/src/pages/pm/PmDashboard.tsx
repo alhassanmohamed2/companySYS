@@ -46,6 +46,14 @@ export default function PmDashboard() {
         return <span className={`badge ${map[status] ?? 'badge-todo'}`}>{status.replace('_', ' ')}</span>;
     };
 
+    const priorityBadge = (priority: string) => {
+        const pMap: Record<string, string> = { LOW: '#94a3b8', MEDIUM: '#6366f1', HIGH: '#f97316', URGENT: '#ef4444' };
+        const color = pMap[priority] || '#94a3b8';
+        return <span style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, backgroundColor: `${color}20`, color: color }}>
+            {priority}
+        </span>;
+    };
+
     return (
         <div className="animate-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -137,6 +145,7 @@ export default function PmDashboard() {
                     <thead>
                         <tr style={{ borderBottom: '1px solid #334155' }}>
                             <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Task</th>
+                            <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Priority</th>
                             <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Sprint</th>
                             <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Status</th>
                             <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Assignee</th>
@@ -146,12 +155,13 @@ export default function PmDashboard() {
                         {tasks.length > 0 ? tasks.map((t: any, i: number) => (
                             <tr key={i} style={{ borderBottom: '1px solid #1e293b' }}>
                                 <td style={{ padding: '0.75rem', fontWeight: 500 }}>{t.title}</td>
+                                <td style={{ padding: '0.75rem' }}>{priorityBadge(t.priority)}</td>
                                 <td style={{ padding: '0.75rem', color: '#94a3b8' }}>{t.sprint || '—'}</td>
                                 <td style={{ padding: '0.75rem' }}>{statusBadge(t.status)}</td>
                                 <td style={{ padding: '0.75rem', color: '#94a3b8' }}>{t.assigned_to?.username ?? '—'}</td>
                             </tr>
                         )) : (
-                            <tr><td colSpan={4} style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>No tasks yet</td></tr>
+                            <tr><td colSpan={5} style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>No tasks yet</td></tr>
                         )}
                     </tbody>
                 </table>

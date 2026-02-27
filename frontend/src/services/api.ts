@@ -57,6 +57,10 @@ export const getTask = (id: number) => api.get(`/tasks/${id}/`);
 export const createTask = (data: Record<string, unknown>) => api.post('/tasks/', data);
 export const updateTask = (id: number, data: Record<string, unknown>) => api.patch(`/tasks/${id}/`, data);
 export const deleteTask = (id: number) => api.delete(`/tasks/${id}/`);
+export const createTaskComment = (data: Record<string, unknown>) => api.post('/task-comments/', data);
+
+// ── Activity Logs ──
+export const getActivityLogs = (params?: Record<string, string>) => api.get('/activity-logs/', { params });
 
 // ── Notifications ──
 export const getNotifications = () => api.get('/notifications/');

@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions, filters
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Project, Task, AssetLink, Notification
-from .serializers import ProjectSerializer, TaskSerializer, AssetLinkSerializer, NotificationSerializer
+from .models import Project, Task, AssetLink, Notification, TaskComment, ActivityLog
+from .serializers import ProjectSerializer, TaskSerializer, AssetLinkSerializer, NotificationSerializer, TaskCommentSerializer, ActivityLogSerializer
 from .permissions import IsAdminUser, IsCEOUser, IsPMUser, IsDeveloperUser
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -79,3 +79,20 @@ class NotificationViewSet(viewsets.ModelViewSet):
         notification.is_read = True
         notification.save()
         return Response({'status': 'notification marked as read'})
+
+class TaskCommentViewSet(viewsets.ModelViewSet):
+    queryset = TaskComment.objects.all().order_by('created_at')
+    serializer_class = TaskCommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['task']
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+        
+class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = ActivityLog.objects.all().order_by('-created_at')
+    serializer_class = ActivityLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['target_type', 'target_id', 'user']
