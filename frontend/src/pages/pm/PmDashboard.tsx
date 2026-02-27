@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { getProjects, getTasks, createProject } from '../../services/api';
+import { getProjects, getTasks, createProject, getUsers } from '../../services/api';
 import { FolderKanban, Plus, ListTodo } from 'lucide-react';
 
 export default function PmDashboard() {
@@ -9,21 +9,27 @@ export default function PmDashboard() {
     const navigate = useNavigate();
     const [projects, setProjects] = useState<any[]>([]);
     const [tasks, setTasks] = useState<any[]>([]);
+    const [users, setUsers] = useState<any[]>([]);
     const [showNewProject, setShowNewProject] = useState(false);
-    const [newProject, setNewProject] = useState({ name: '', description: '', start_date: '' });
+    const [newProject, setNewProject] = useState({ name: '', description: '', start_date: '', pm_id: '' });
 
     const load = () => {
         getProjects().then((r) => setProjects(r.data.results ?? r.data)).catch(() => { });
         getTasks().then((r) => setTasks(r.data.results ?? r.data)).catch(() => { });
+        getUsers().then((r) => setUsers(r.data.results ?? r.data)).catch(() => { });
     };
     useEffect(load, []);
+
+    const pmUsers = users.filter((u: any) => u.role === 'PM');
 
     const handleCreateProject = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await createProject(newProject);
+            const payload: any = { name: newProject.name, description: newProject.description, start_date: newProject.start_date };
+            if (newProject.pm_id) payload.pm_id = Number(newProject.pm_id);
+            await createProject(payload);
             setShowNewProject(false);
-            setNewProject({ name: '', description: '', start_date: '' });
+            setNewProject({ name: '', description: '', start_date: '', pm_id: '' });
             load();
         } catch { }
     };
@@ -59,6 +65,13 @@ export default function PmDashboard() {
                     <form onSubmit={handleCreateProject} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         <input placeholder="Project Name" required value={newProject.name} onChange={(e) => setNewProject({ ...newProject, name: e.target.value })} />
                         <input type="date" required value={newProject.start_date} onChange={(e) => setNewProject({ ...newProject, start_date: e.target.value })} />
+                        <select value={newProject.pm_id} onChange={(e) => setNewProject({ ...newProject, pm_id: e.target.value })}>
+                            <option value="">— Assign Project Manager —</option>
+                            {pmUsers.map((u: any) => (
+                                <option key={u.id} value={u.id}>{u.username} ({u.email})</option>
+                            ))}
+                        </select>
+                        <div />
                         <textarea placeholder="Description" style={{ gridColumn: '1 / -1' }} value={newProject.description} onChange={(e) => setNewProject({ ...newProject, description: e.target.value })} />
                         <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8 }}>
                             <button type="submit" className="btn btn-primary"><Plus size={16} /> Create</button>
@@ -103,7 +116,10 @@ export default function PmDashboard() {
                                     <p style={{ fontWeight: 600 }}>{p.name}</p>
                                     <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 2 }}>{p.description?.slice(0, 80)}</p>
                                 </div>
-                                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{p.start_date}</span>
+                                <div style={{ textAlign: 'right' }}>
+                                    <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{p.start_date}</span>
+                                    {p.pm && <p style={{ fontSize: '0.7rem', color: '#818cf8', marginTop: 2 }}>PM: {p.pm.username}</p>}
+                                </div>
                             </div>
                         ))}
                     </div>

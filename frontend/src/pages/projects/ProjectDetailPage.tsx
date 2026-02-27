@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { getProject, getTasks, getAssets, createAsset, createTask, deleteAsset } from '../../services/api';
+import { getProject, getTasks, getAssets, createAsset, createTask, deleteAsset, getUsers } from '../../services/api';
 import { ArrowLeft, Github, Link2, Plus, Trash2, ListTodo, FolderKanban, ExternalLink, X, Eye, Users, Clock } from 'lucide-react';
 
 export default function ProjectDetailPage() {
@@ -13,16 +13,18 @@ export default function ProjectDetailPage() {
     const [project, setProject] = useState<any>(null);
     const [tasks, setTasks] = useState<any[]>([]);
     const [assets, setAssets] = useState<any[]>([]);
+    const [allUsers, setAllUsers] = useState<any[]>([]);
     const [showAssetForm, setShowAssetForm] = useState(false);
     const [showTaskForm, setShowTaskForm] = useState(false);
     const [assetForm, setAssetForm] = useState({ asset_type: 'GITHUB', url: '', description: '' });
-    const [taskForm, setTaskForm] = useState({ title: '', description: '', status: 'TODO', sprint: '' });
+    const [taskForm, setTaskForm] = useState({ title: '', description: '', status: 'TODO', sprint: '', assigned_to_id: '' });
 
     const load = () => {
         if (!id) return;
         getProject(Number(id)).then((r) => setProject(r.data)).catch(() => { });
         getTasks({ project: id }).then((r) => setTasks(r.data.results ?? r.data)).catch(() => { });
         getAssets({ project: id }).then((r) => setAssets(r.data.results ?? r.data)).catch(() => { });
+        getUsers().then((r) => setAllUsers(r.data.results ?? r.data)).catch(() => { });
     };
     useEffect(load, [id]);
 
@@ -34,11 +36,15 @@ export default function ProjectDetailPage() {
         load();
     };
 
+    const devUsers = allUsers.filter((u: any) => u.role === 'DEV');
+
     const handleAddTask = async (e: React.FormEvent) => {
         e.preventDefault();
-        await createTask({ ...taskForm, project: Number(id) });
+        const payload: any = { title: taskForm.title, description: taskForm.description, status: taskForm.status, sprint: taskForm.sprint, project: Number(id) };
+        if (taskForm.assigned_to_id) payload.assigned_to_id = Number(taskForm.assigned_to_id);
+        await createTask(payload);
         setShowTaskForm(false);
-        setTaskForm({ title: '', description: '', status: 'TODO', sprint: '' });
+        setTaskForm({ title: '', description: '', status: 'TODO', sprint: '', assigned_to_id: '' });
         load();
     };
 
@@ -249,6 +255,13 @@ export default function ProjectDetailPage() {
                     <form onSubmit={handleAddTask} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem', padding: '1rem', background: '#0f172a', borderRadius: '0.75rem' }}>
                         <input placeholder="Task title" required value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} />
                         <input placeholder="Sprint (e.g. Sprint 1)" value={taskForm.sprint} onChange={(e) => setTaskForm({ ...taskForm, sprint: e.target.value })} />
+                        <select value={taskForm.assigned_to_id} onChange={(e) => setTaskForm({ ...taskForm, assigned_to_id: e.target.value })}>
+                            <option value="">— Assign Developer —</option>
+                            {devUsers.map((u: any) => (
+                                <option key={u.id} value={u.id}>{u.username} ({u.email})</option>
+                            ))}
+                        </select>
+                        <div />
                         <textarea placeholder="Description" style={{ gridColumn: '1 / -1' }} value={taskForm.description} onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} />
                         <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8 }}>
                             <button type="submit" className="btn btn-primary" style={{ fontSize: '0.75rem' }}><Plus size={14} /> Create Task</button>
